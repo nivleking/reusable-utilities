@@ -16,7 +16,7 @@ services:
       - db
     restart: unless-stopped
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U nivleking -d utilities"]
+      test: ["CMD-SHELL", "pg_isready -U postgres -d utilities"]
       interval: 10s
       timeout: 5s
       retries: 5

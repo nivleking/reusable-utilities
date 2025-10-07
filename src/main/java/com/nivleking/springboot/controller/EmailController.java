@@ -1,11 +1,14 @@
 package com.nivleking.springboot.controller;
 
 import com.nivleking.springboot.dto.ApiResponse;
+import com.nivleking.springboot.dto.ApiResponseV2;
 import com.nivleking.springboot.dto.EmailDTO;
 import com.nivleking.springboot.service.EmailService;
 import lombok.extern.slf4j.Slf4j;
 import org.slf4j.MDC;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -22,31 +25,31 @@ public class EmailController {
     private EmailService emailService;
 
     @PostMapping("send-email")
-    public ApiResponse<String> sendEmail(
+    public ResponseEntity<ApiResponseV2<String>> sendEmail(
             @RequestParam(name = "files", required = false) MultipartFile[] files,
             @RequestParam(name = "dto") EmailDTO dto
     ) {
         ensureTraceAndSpanIds();
+        String traceId = MDC.get("X-B3-TraceId");
         try {
             log.info("Processing email request to: {}", dto.getReceiver());
             String result = emailService.sendEmail(dto, files);
 
-            return ApiResponse.success(
-                    result,
-                    "Email sent successfully",
-                    MDC.get("X-B3-TraceId"),
-                    MDC.get("X-B3-SpanId")
-            );
+            return ResponseEntity.ok(ApiResponseV2.success(result, "Success", "Sukses", traceId));
         } catch (Exception e) {
             log.error("Email sending failed: {}", e.getMessage(), e);
-            return ApiResponse.error(
-                    500,
-                    "Failed to send email: " + e.getMessage(),
-                    MDC.get("X-B3-TraceId"),
-                    MDC.get("X-B3-SpanId")
-            );
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(ApiResponseV2.error(
+                        "500",
+                        "Fail to send email",
+                        "Gagal mengirimkan email",
+                        traceId,
+                        e.getMessage()
+                    )
+                );
         }
     }
+
 
     private void ensureTraceAndSpanIds() {
         String traceId = MDC.get("X-B3-TraceId");

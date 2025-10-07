@@ -5,6 +5,7 @@ import com.nivleking.springboot.constant.EmailStatus;
 import com.nivleking.springboot.constant.RegexValidator;
 import com.nivleking.springboot.dto.EmailDTO;
 import com.nivleking.springboot.model.EmailTemplate;
+import com.nivleking.springboot.repository.EmailLogRepository;
 import com.nivleking.springboot.repository.EmailTemplateRepository;
 import jakarta.activation.DataHandler;
 import jakarta.activation.DataSource;
@@ -23,6 +24,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 import java.util.*;
 
 @Service
@@ -44,6 +46,9 @@ public class EmailService {
     private EmailTemplateRepository emailTemplateRepository;
 
     @Autowired
+    private EmailLogRepository emailLogRepository;
+
+    @Autowired
     private ModelMapper modelMapper;
 
     /**
@@ -56,25 +61,79 @@ public class EmailService {
      */
     public String sendEmail(EmailDTO emailDTO, MultipartFile[] files) throws Exception {
         BigDecimal retries = BigDecimal.ZERO;
+        String emailId = emailDTO.getEmailId();
+        LocalDateTime now = LocalDateTime.now();
+
         try {
             log.info("[SEND EMAIL] Starting email sending process to recipient: {}", emailDTO.getReceiver());
-            log.debug("[SEND EMAIL] Email details: id={}, type={}, priority={}", emailDTO.getEmailId(), emailDTO.getEmailType(), emailDTO.getPriority());
+            log.debug("[SEND EMAIL] Email details: id={}, type={}, priority={}", emailId, emailDTO.getEmailType(), emailDTO.getPriority());
 
-            // Save initial log entry
-            emailUtilities.insertLog(emailDTO, emailDTO.getEmailId(), retries);
+            // Generate email ID if not provided
+            if (emailId == null || emailId.isEmpty()) {
+                emailId = UUID.randomUUID().toString();
+                emailDTO.setEmailId(emailId);
+                log.debug("[SEND EMAIL] Generated new email ID: {}", emailId);
+            }
 
-            // Validate emails and collect errors
+            // Check if email type requires delay
+            if (!emailUtilities.checkIfEmailNeedsDelay(emailDTO.getEmailType())) {
+                log.debug("[SEND EMAIL] Email does not use delay! Proceed to normal flow!");
+
+                // Create or update email log without delay
+                try {
+                    emailId = emailLogRepository.createOrUpdateEmailLog(
+                            now,
+                            emailDTO.getEmailType(),
+                            emailId
+                    );
+
+                    if (emailId == null) {
+                        log.info("[SEND EMAIL] Email {} already sent successfully. Skipping.", emailId);
+                        return "Email already successfully sent to " + emailDTO.getReceiver();
+                    }
+                } catch (Exception e) {
+                    log.error("[SEND EMAIL] Insert log error! {} will not be sent: {}", emailDTO.getEmailType(), emailId, e);
+                    throw new Exception("Insert log error! Email id: " + emailId);
+                }
+            } else {
+                log.debug("[SEND EMAIL] Email uses delay concept! EMAIL_TYPE: {}", emailDTO.getEmailType());
+
+                Long delayMillis = emailUtilities.getDelayByEmailType(emailDTO.getEmailType());
+                log.debug("[SEND EMAIL] Delay for {} is {} ms", emailDTO.getEmailType(), delayMillis);
+
+                // Create or update email log with delay
+                try {
+                    emailId = emailLogRepository.checkAndCreateEmailDelay(
+                            now,
+                            emailDTO.getEmailType(),
+                            emailId,
+                            delayMillis,
+                            retries
+                    );
+
+                    // If emailId is null, it means delay is active - return early
+                    if (emailId == null) {
+                        log.debug("[SEND EMAIL] Email delay is still active! {} will not be sent: {}",
+                                emailDTO.getEmailType(), emailDTO.getEmailId());
+                        return "Email delay is still active for " + emailDTO.getEmailType() + "! Email will not be sent: " + emailDTO.getEmailId();
+                    }
+                } catch (Exception e) {
+                    log.error("[SEND EMAIL] Email delay check failed: {}", e.getMessage(), e);
+                    throw new Exception("Email delay check failed! Email id: " + emailId);
+                }
+            }
+
+            // Email validations
             log.debug("[SEND EMAIL] Validating email addresses");
             List<String> errors = validateEmails(emailDTO);
             if (!errors.isEmpty()) {
                 String errorMsg = String.join(", ", errors);
                 log.error("[SEND EMAIL] Email validation failed: {}", errorMsg);
                 emailUtilities.saveErrorLog(emailDTO, EmailStatus.FAILED, emailDTO.getEmailId(), retries, "400", "VALIDATION_ERROR", errorMsg);
-                throw new IllegalArgumentException("Email validation failed: " + errorMsg);
+                throw new IllegalArgumentException(errorMsg);
             }
             log.debug("[SEND EMAIL] Email validation successful");
 
-            // Create auth-enabled session for Gmail
             log.debug("[SEND EMAIL] Creating email session with authentication");
             Session session = Session.getInstance(emailUtilities.getDefaultProps(),
                     new Authenticator() {
@@ -167,40 +226,75 @@ public class EmailService {
     /**
      * Validate email addresses and required fields
      */
-    private List<String> validateEmails(EmailDTO emailDTO) {
+    private List<String> validateEmails(EmailDTO emailDTO) throws Exception {
         List<String> errors = new ArrayList<>();
 
         if (emailDTO.getSubject() == null || emailDTO.getSubject().isEmpty()) {
-            log.warn("Email validation: Missing subject");
+            log.warn("[SEND EMAIL] Email validation: Missing subject");
             errors.add("Email subject is required");
         }
 
         if (emailDTO.getSender() == null || emailDTO.getSender().isEmpty()) {
-            log.warn("Email validation: Missing sender");
+            log.warn("[SEND EMAIL] Email validation: Missing sender");
             errors.add("Sender email is required");
         } else if (!emailDTO.getSender().matches(RegexValidator.EMAIL_FORMAT)) {
-            log.warn("Email validation: Invalid sender format: {}", emailDTO.getSender());
+            log.warn("[SEND EMAIL] Email validation: Invalid sender format: {}", emailDTO.getSender());
             errors.add("Invalid sender email: " + emailDTO.getSender());
         }
 
+        // Validate receiver emails
         if (emailDTO.getReceiver() == null || emailDTO.getReceiver().isEmpty()) {
-            log.warn("Email validation: Missing receiver");
+            log.warn("[SEND EMAIL] Email validation: Missing receiver");
             errors.add("Receiver email is required");
-        } else if (!emailDTO.getReceiver().matches(RegexValidator.EMAIL_FORMAT)) {
-            log.warn("Email validation: Invalid receiver format: {}", emailDTO.getReceiver());
-            errors.add("Invalid receiver email: " + emailDTO.getReceiver());
+        } else {
+            String receiver = emailDTO.getReceiver();
+            if (receiver.contains(";")) {
+                EmailUtilities.EmailResult result = emailUtilities.splitEmails(receiver, "RECEIVER");
+                emailDTO.setReceiver(result.getEmails());
+                errors.addAll(result.getErrors());
+                if (result.getErrors().isEmpty()) {
+                    log.debug("[SEND EMAIL] Email receiver valid! -> {}", emailDTO.getReceiver());
+                }
+            } else if (!receiver.matches(RegexValidator.EMAIL_FORMAT)) {
+                log.warn("[SEND EMAIL] Email validation: Invalid receiver format: {}", receiver);
+                errors.add("Invalid receiver email: " + receiver);
+            }
         }
 
-        if (emailDTO.getCc() != null && !emailDTO.getCc().isEmpty() &&
-                !emailDTO.getCc().matches(RegexValidator.EMAIL_FORMAT)) {
-            log.warn("Email validation: Invalid CC format: {}", emailDTO.getCc());
-            errors.add("Invalid CC email: " + emailDTO.getCc());
+        // Validate CC emails
+        if (emailDTO.getCc() != null && !emailDTO.getCc().isEmpty()) {
+            String cc = emailDTO.getCc();
+            if (cc.contains(";")) {
+                EmailUtilities.EmailResult result = emailUtilities.splitEmails(cc, "CC");
+                emailDTO.setCc(result.getEmails());
+                errors.addAll(result.getErrors());
+                if (result.getErrors().isEmpty()) {
+                    log.debug("[SEND EMAIL] Email CC valid! -> {}", emailDTO.getCc());
+                }
+            } else if (!cc.matches(RegexValidator.EMAIL_FORMAT)) {
+                log.warn("[SEND EMAIL] Email validation: Invalid CC format: {}", cc);
+                errors.add("Invalid CC email: " + cc);
+            }
+        } else {
+            log.debug("[SEND EMAIL] No Email CCs!");
         }
 
-        if (emailDTO.getBcc() != null && !emailDTO.getBcc().isEmpty() &&
-                !emailDTO.getBcc().matches(RegexValidator.EMAIL_FORMAT)) {
-            log.warn("Email validation: Invalid BCC format: {}", emailDTO.getBcc());
-            errors.add("Invalid BCC email: " + emailDTO.getBcc());
+        // Validate BCC emails
+        if (emailDTO.getBcc() != null && !emailDTO.getBcc().isEmpty()) {
+            String bcc = emailDTO.getBcc();
+            if (bcc.contains(";")) {
+                EmailUtilities.EmailResult result = emailUtilities.splitEmails(bcc, "BCC");
+                emailDTO.setBcc(result.getEmails());
+                errors.addAll(result.getErrors());
+                if (result.getErrors().isEmpty()) {
+                    log.debug("[SEND EMAIL] Email BCC valid! -> {}", emailDTO.getBcc());
+                }
+            } else if (!bcc.matches(RegexValidator.EMAIL_FORMAT)) {
+                log.warn("[SEND EMAIL] Email validation: Invalid BCC format: {}", bcc);
+                errors.add("Invalid BCC email: " + bcc);
+            }
+        } else {
+            log.debug("[SEND EMAIL] No Email BCCs!");
         }
 
         return errors;
@@ -211,7 +305,6 @@ public class EmailService {
             return getDefaultEmailTemplate();
         }
 
-        // Try to find template in database
         EmailTemplate template = emailTemplateRepository.findByTemplateId(templateName)
                 .orElseGet(() -> {
                     log.warn("[SEND EMAIL] Template not found: {}, using default", templateName);

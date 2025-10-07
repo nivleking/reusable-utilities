@@ -8,6 +8,7 @@ import com.nivleking.springboot.dto.ConfigMapData;
 import com.nivleking.springboot.dto.EmailDTO;
 import com.nivleking.springboot.model.EmailLog;
 import com.nivleking.springboot.repository.EmailLogRepository;
+import jakarta.annotation.Resource;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
@@ -33,6 +34,9 @@ public class EmailUtilities {
 
     @Autowired
     private ConfigMapData emailPort;
+
+    @Resource()
+    private Map<String, String> emailDelayMap;
 
     @Autowired
     private ObjectMapper objectMapper;
@@ -115,27 +119,27 @@ public class EmailUtilities {
         return templateEngine.process(templateHtml, context);
     }
 
-//    public boolean checkIfEmailNeedsDelay(String emailType) {
-//        for (Map.Entry<String, String> entry : emailAppDelayConfigurations.entrySet()) {
-//            if (emailType.equals(entry.getKey())) {
-//                return true;
-//            }
-//        }
-//
-//        return false;
-//    }
+    public boolean checkIfEmailNeedsDelay(String emailType) {
+        for (Map.Entry<String, String> entry : emailDelayMap.entrySet()) {
+            if (emailType.equals(entry.getKey())) {
+                return true;
+            }
+        }
 
-//    public Long getDelayByEmailType(String emailType) {
-//        Long delayInMillis = null;
-//        try {
-//            delayInMillis = Long.parseLong(emailAppDelayConfigurations.get(emailType));
-//        } catch (Exception e) {
-//            // Delay for 5 Minutes
-//            delayInMillis = 300_000L;
-//        }
-//
-//        return delayInMillis;
-//    }
+        return false;
+    }
+
+    public Long getDelayByEmailType(String emailType) {
+        Long delayInMillis = null;
+        try {
+            delayInMillis = Long.parseLong(emailDelayMap.get(emailType));
+        } catch (Exception e) {
+            // Delay for 5 Minutes
+            delayInMillis = 300_000L;
+        }
+
+        return delayInMillis;
+    }
 
     public void insertLog(EmailDTO dto, String emailId, BigDecimal numberOfRetries) {
         try {

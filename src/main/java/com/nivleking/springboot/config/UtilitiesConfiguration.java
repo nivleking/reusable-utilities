@@ -4,6 +4,7 @@ import com.nivleking.springboot.constant.ConfigServerMap;
 import com.nivleking.springboot.dto.ConfigMapData;
 import com.nivleking.springboot.model.ConfigServer;
 import com.nivleking.springboot.repository.ConfigServerRepository;
+import com.nivleking.springboot.service.ConfigMapperService;
 import jakarta.annotation.PostConstruct;
 import lombok.extern.slf4j.Slf4j;
 import org.modelmapper.ModelMapper;
@@ -22,6 +23,9 @@ import java.util.Map;
 public class UtilitiesConfiguration {
     @Autowired
     private ConfigServerRepository configServerRepository;
+
+    @Autowired
+    private ConfigMapperService configMapperService;
 
     @Component
     @RefreshScope
@@ -63,6 +67,26 @@ public class UtilitiesConfiguration {
     @RefreshScope
     public ConfigMapData emailPort() {
         return new ConfigMapData(configServerHolder.getConfigs().get(ConfigServerMap.EMAIL_PORT));
+    }
+
+    @Bean
+    @RefreshScope
+    public Map<String, String> emailDelayMap() throws Exception {
+        Map<String, String> configMap = configServerHolder.getConfigs();
+        String emailDelay = configMap.get(ConfigServerMap.EMAIL_DELAY);
+
+        Map<String, String> emailDelayMap = new HashMap<>();
+
+        if (!(emailDelay == null || emailDelay.isEmpty())) {
+            emailDelayMap = configMapperService.configServerMapValueReader(emailDelay);
+            log.debug("[SEND EMAIL] Email types with delay: " + emailDelayMap + " with total data: " + emailDelayMap.size());
+        }
+
+        if (emailDelayMap.isEmpty()) {
+            log.debug("[SEND EMAIL] Email types with delay configuration is empty!");
+        }
+
+        return emailDelayMap;
     }
 
     @Bean

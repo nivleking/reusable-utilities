@@ -237,3 +237,8 @@ public String myNewConfig() {
 @Qualifier("myNewConfig")
 private String myNewConfig;
 ```
+
+## 📚 API Documentation
+Complete API documentation is available in OpenAPI 3.0.3 format:
+- **OpenAPI JSON**: [`docs/openapi.json`](./docs/openapi.json)
+- **SwaggerHub**: [API Documentation](https://app.swaggerhub.com/apis/freelance-a1b/spring-boot-utilities/1.0.0) 🌐

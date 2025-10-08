@@ -10,24 +10,24 @@ This project provides a collection of utility services that can be easily integr
 
 ### 1️⃣ Email Service
 A email management system with time delay feature:
-- ✉️ Template-based HTML emails with dynamic variables
-- 📎 Multiple file attachments support
-- ⏱️ Delay mechanism
-- 📊 Logging
-- 👥 Multiple recipients (To, CC, BCC)
+- ✉Template-based HTML emails with dynamic variables
+- Multiple file attachments support
+- Delay mechanism
+- Logging
+- Multiple recipients (To, CC, BCC)
 
-### 2️⃣ ⚙️ Database-Driven Config Server
+### 2️⃣ Database-Driven Config Server
 Dynamic configuration management:
-- 💾 Store configurations in database
-- 🔄 Live refresh via Spring Actuator (`/actuator/refresh`)
-- 📝 Easy configuration updates through database
+- Store configurations in database
+- Live refresh via Spring Actuator (`/actuator/refresh`)
+- Easy configuration updates through database
 
 ---
 
-## 🔮 Future Plans
-- 📄 PDF Generation
-- 📱 Send Teams Message
-- 📊 Data Export (CSV, Excel, PDF)
+## Future Plans
+- PDF Generation
+- Send Teams Message
+- Data Export (CSV, Excel, PDF)
 
 ---
 
@@ -36,7 +36,7 @@ Dynamic configuration management:
 - [Getting Started](#-getting-started)
 - [Usage Examples](#-usage-examples)
 
-## 🚀 Getting Started
+## Getting Started
 
 ### Prerequisites
 - Java 21+
@@ -65,8 +65,8 @@ docker-compose up -d
 ```
 
 This will start:
-- 🐘 **PostgreSQL** on port `5332`
-- 🔧 **pgAdmin4** on port `5050` → http://localhost:5050
+- **PostgreSQL** on port `5332`
+- **pgAdmin4** on port `5050` → http://localhost:5050
 
 4. **Build and run:**
 ```bash
@@ -76,7 +76,7 @@ mvn spring-boot:run
 
 Utilities will start on **http://localhost:8080**
 
-## 📝 Usage Examples
+## Usage Examples
 
 ### 1️⃣ Email Service (OAS 3: docs/email-api.json)
 
@@ -182,24 +182,23 @@ curl -X POST http://localhost:8080/api/utilities/mailer/send-email \
 #### Reading Configuration
 
 ```java
+import com.nivleking.springboot.dto.ConfigMapData;
+
 @Service
 public class MyService {
-    
+
     @Autowired
-    @Qualifier("emailHost")
-    private String emailHost;
-    
+    private ConfigMapData emailHost;
+
     @Autowired
-    @Qualifier("emailPort")
-    private String emailPort;
-    
-    @Autowired
-    @Qualifier("emailDelayMap")
+    private ConfigMapData emailPort;
+
+    @Resource()
     private Map<String, String> emailDelayMap;
-    
+
     public void useConfig() {
-        log.info("SMTP Host: {}", emailHost);
-        log.info("SMTP Port: {}", emailPort);
+        log.info("SMTP Host: {}", emailHost.getValue());
+        log.info("SMTP Port: {}", emailPort.getValue());
         log.info("Promotional email delay: {} ms", emailDelayMap.get("PROMOTIONAL"));
     }
 }
@@ -222,23 +221,24 @@ curl -X POST http://localhost:8080/actuator/refresh
 #### Adding New Configuration
 
 ```java
-// 1. Add to CONFIG_SERVER table
-INSERT INTO CONFIG_SERVER (PROPERTIES, VALUE) VALUES ('com.nivleking.springboot.my.new.config', 'my-value');
+import com.nivleking.springboot.dto.ConfigMapData;
 
-// 2. Create bean in UtilitiesConfiguration
+// 1. Add to CONFIG_SERVER table
+INSERT INTO CONFIG_SERVER (PROPERTIES, VALUE) VALUES ('com.nivleking.springboot.my.new.config','my-value');
+
+// 2. Create Bean with RefreshScope annotation in UtilitiesConfiguration
 @Bean
 @RefreshScope
-public String myNewConfig() {
-    return configServerHolder.getConfig("com.nivleking.springboot.my.new.config", "default-value");
+public ConfigMapData myNewConfig() {
+    return new ConfigMapData(configServerHolder.getConfig("com.nivleking.springboot.my.new.config", "default-value"));
 }
 
 // 3. Inject and use
 @Autowired
-@Qualifier("myNewConfig")
-private String myNewConfig;
+private ConfigMapData myNewConfig;
 ```
 
 ## 📚 API Documentation
 Complete API documentation is available in OpenAPI 3.0.3 format:
-- **OpenAPI JSON**: [`docs/openapi.json`](./docs/openapi.json)
+- **Email Service OpenAPI JSON**: [`docs/email-api.json`](./docs/email-api.json)
 - **SwaggerHub**: [API Documentation](https://app.swaggerhub.com/apis/freelance-a1b/spring-boot-utilities/1.0.0) 🌐

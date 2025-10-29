@@ -4,7 +4,7 @@
 ![Spring Boot](https://img.shields.io/badge/Spring%20Boot-3.2.5-green)
 ![PostgreSQL](https://img.shields.io/badge/PostgreSQL-latest-blue)
 
-> **This is my personal project for building reusable utilities as a microservice architecture. It was to help my development process as a Backend Developer when needing to fulfill common enterprise needs.**
+> **This is my personal project for building reusable utilities service. It was to help my development process as a Backend Developer when needing to develop feature related to common enterprise needs.**
 
 These utility services can be integrated into another Spring Boot application.
 

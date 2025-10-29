@@ -1,5 +1,7 @@
 package com.nivleking.springboot.controller;
 
+import com.nivleking.springboot.constant.ResponseMessages;
+import com.nivleking.springboot.constant.UtilHelper;
 import com.nivleking.springboot.dto.ApiResponse;
 import com.nivleking.springboot.dto.ApiResponseV2;
 import com.nivleking.springboot.dto.EmailDTO;
@@ -29,41 +31,29 @@ public class EmailController {
             @RequestParam(name = "files", required = false) MultipartFile[] files,
             @RequestParam(name = "dto") EmailDTO dto
     ) {
-        ensureTraceAndSpanIds();
+        UtilHelper.ensureTraceAndSpanIds();
         String traceId = MDC.get("X-B3-TraceId");
         try {
             log.info("Processing email request to: {}", dto.getReceiver());
             String result = emailService.sendEmail(dto, files);
 
-            return ResponseEntity.ok(ApiResponseV2.success(result, "Success", "Sukses", traceId));
+            return ResponseEntity.ok(ApiResponseV2.success(
+                result,
+                ResponseMessages.ENG_SUCCESS_CODE,
+                ResponseMessages.ID_SUCCESS_CODE,
+                traceId
+            ));
         } catch (Exception e) {
             log.error("Email sending failed: {}", e.getMessage(), e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                 .body(ApiResponseV2.error(
                         "500",
-                        "Fail to send email",
-                        "Gagal mengirimkan email",
+                        ResponseMessages.ENG_FAIL_SEND_EMAIL,
+                        ResponseMessages.ID_FAIL_SEND_EMAIL,
                         traceId,
                         e.getMessage()
                     )
                 );
-        }
-    }
-
-
-    private void ensureTraceAndSpanIds() {
-        String traceId = MDC.get("X-B3-TraceId");
-        if (traceId == null || traceId.isEmpty()) {
-            traceId = UUID.randomUUID().toString();
-            MDC.put("X-B3-TraceId", traceId);
-            log.debug("Generated new trace ID: {}", traceId);
-        }
-
-        String spanId = MDC.get("X-B3-SpanId");
-        if (spanId == null || spanId.isEmpty()) {
-            spanId = UUID.randomUUID().toString();
-            MDC.put("X-B3-SpanId", spanId);
-            log.debug("Generated new span ID: {}", spanId);
         }
     }
 }

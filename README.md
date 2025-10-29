@@ -4,17 +4,17 @@
 ![Spring Boot](https://img.shields.io/badge/Spring%20Boot-3.2.5-green)
 ![PostgreSQL](https://img.shields.io/badge/PostgreSQL-latest-blue)
 
-> **This is my project for building reusable and personal utility services as a microservice architecture.**
+> **This is my personal project for building reusable utilities as a microservice architecture. It was to help my development process as a Backend Developer when needing to fulfill common enterprise needs.**
 
-This project provides a collection of utility services that can be easily integrated into another Spring Boot application.
+These utility services can be integrated into another Spring Boot application.
 
 ### 1️⃣ Email Service
 A email management system with time delay feature:
-- ✉Template-based HTML emails with dynamic variables
+- Template-based HTML emails with dynamic variables
 - Multiple file attachments support
-- Delay mechanism
-- Logging
+- Delay mechanism, DB records / logging
 - Multiple recipients (To, CC, BCC)
+- OpenAPI spec available at `docs/email-api.json`
 
 ### 2️⃣ Database-Driven Config Server
 Dynamic configuration management:
@@ -22,10 +22,15 @@ Dynamic configuration management:
 - Live refresh via Spring Actuator (`/actuator/refresh`)
 - Easy configuration updates through database
 
+### 3️⃣ PDF Generator Service
+- A lightweight PDF generation that accepts an inline Thymeleaf HTML template and JSON data
+- Renders HTML, converts it to PDF (via Flying Saucer / iText)
+- Returns PDF bytes as base64.
+- OpenAPI spec available at `docs/pdf-generator-api.json`
 ---
 
 ## Future Plans
-- PDF Generation
+- <s>PDF Generation</s>
 - Send Teams Message
 - Data Export (CSV, Excel, PDF)
 
@@ -78,7 +83,7 @@ Utilities will start on **http://localhost:8080**
 
 ## Usage Examples
 
-### 1️⃣ Email Service (OAS 3: docs/email-api.json)
+### 1️⃣ Email Service
 
 #### Basic Email
 
@@ -238,7 +243,45 @@ public ConfigMapData myNewConfig() {
 private ConfigMapData myNewConfig;
 ```
 
+### 3️⃣ PDF Generator
+
+#### Example Request Body
+```json
+// localhost:8080/api/utilities/pdf-generator/generate
+{
+  "template": "<html><body><h1>Invoice for [[${data.customer}]]</h1><p>Amount: [[${data.amount}]]</p></body></html>",
+  "data": {
+    "customer": "John Doe",
+    "amount": "USD 100.00"
+  }
+}
+```
+
+#### Example Usage (Service Call Example)
+```java
+@Autowired
+private PdfGeneratorService pdfGeneratorService;
+
+public void generate() throws Exception {
+    String inputJson = "{\"template\":\"<html><body><h1>[[${data.name}]]</h1></body></html>\",\"data\":{\"name\":\"Alice\"}}";
+    byte[] pdfBytes = pdfGeneratorService.parseThymeleafTemplate(inputJson);
+    // pdfBytes contains raw PDF bytes; optionally encode to base64 for API response
+    String base64 = Base64.getEncoder().encodeToString(pdfBytes);
+}
+```
+
+#### Using CURL
+```bash
+curl -X POST http://localhost:8080/api/utilities/pdf-generator/generate \
+  -H "Content-Type: application/json" \
+  -d '{
+    "template":"<html><body><h1>Invoice for [[${data.customer}]]</h1><p>Amount: [[${data.amount}]]</p></body></html>",
+    "data":{"customer":"John Doe","amount":"USD 100.00"}
+  }'
+```
+
 ## 📚 API Documentation
 Complete API documentation is available in OpenAPI 3.0.3 format:
-- **Email Service OpenAPI JSON**: [`docs/email-api.json`](./docs/email-api.json)
+- **Email Service OpenAPI JSON**: [`docs/api.json`](./docs/api.json)
+- **PDF Generator Service OpenAPI JSON**: [`docs/api.json`](./docs/api.json)
 - **SwaggerHub**: [API Documentation](https://app.swaggerhub.com/apis/freelance-a1b/spring-boot-utilities/1.0.0) 🌐

@@ -3,7 +3,7 @@
   "info": {
     "version": "1.0.0",
     "title": "Spring Boot Utilities",
-    "description": "A collection of utility services. This is a personal fun project for building reusable utility services as a microservice architecture.",
+    "description": "My utilities.",
     "contact": {
       "name": "Kelvin Sidharta Sie",
       "email": "kelvinsidhartasie@gmail.com"
@@ -27,6 +27,10 @@
     {
       "name": "Actuator",
       "description": "Spring Boot Actuator endpoints for monitoring and management"
+    },
+    {
+      "name": "PDF Generator",
+      "description": "Generate PDF from HTML/Thymeleaf templates and JSON data"
     }
   ],
   "paths": {
@@ -213,6 +217,116 @@
           }
         }
       }
+    },
+    "/api/utilities/pdf-generator/generate": {
+      "post": {
+        "tags": [
+          "PDF Generator"
+        ],
+        "summary": "Generate PDF",
+        "description": "Accepts a JSON body with `template` (HTML/Thymeleaf) and `data` (object) and returns PDF bytes (base64 string) wrapped in ApiResponseV2.",
+        "operationId": "generatePdf",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "template"
+                ],
+                "properties": {
+                  "template": {
+                    "type": "string",
+                    "description": "Thymeleaf HTML template string (can include expressions referencing `data` variable).",
+                    "example": "<html><body><h1>Invoice for [[${data.customer}]]</h1><p>Amount: [[${data.amount}]]</p></body></html>"
+                  },
+                  "data": {
+                    "type": "object",
+                    "description": "Key-value data object available to the template as `data`.",
+                    "additionalProperties": true,
+                    "example": {
+                      "customer": "John Doe",
+                      "amount": "USD 100.00"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "PDF generated successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseV2"
+                },
+                "example": {
+                  "error_schema": {
+                    "status_code": "200",
+                    "error_message": {
+                      "indonesian": "PDF berhasil dibuat",
+                      "english": "PDF generated successfully"
+                    }
+                  },
+                  "output_schema": {
+                    "request_id": "ceedcf10-0d0a-49be-ba4a-e7d2b6e06cc3",
+                    "data": "JVBERi0xLjQKJcfs..."
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request (e.g. missing template or invalid input)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseV2"
+                },
+                "example": {
+                  "error_schema": {
+                    "status_code": "400",
+                    "error_message": {
+                      "indonesian": "Input JSON tidak valid",
+                      "english": "Invalid JSON input for PDF generator"
+                    }
+                  },
+                  "output_schema": {
+                    "request_id": "req-123",
+                    "data": "Missing `template` in JSON input"
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error during PDF generation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseV2"
+                },
+                "example": {
+                  "error_schema": {
+                    "status_code": "500",
+                    "error_message": {
+                      "indonesian": "Terjadi kesalahan pada server",
+                      "english": "Internal server error"
+                    }
+                  },
+                  "output_schema": {
+                    "request_id": "req-456",
+                    "data": "Failed to generate PDF: iText renderer error"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -388,8 +502,43 @@
             }
           }
         }
+      },
+      "ApiResponseV2": {
+        "type": "object",
+        "properties": {
+          "error_schema": {
+            "type": "object",
+            "properties": {
+              "status_code": {
+                "type": "string"
+              },
+              "error_message": {
+                "type": "object",
+                "properties": {
+                  "indonesian": {
+                    "type": "string"
+                  },
+                  "english": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          },
+          "output_schema": {
+            "type": "object",
+            "properties": {
+              "request_id": {
+                "type": "string"
+              },
+              "data": {
+                "type": "string",
+                "description": "Base64-encoded PDF bytes"
+              }
+            }
+          }
+        }
       }
     }
   }
 }
-

@@ -166,7 +166,7 @@ public class EmailUtilities {
     public void saveSuccessLog(EmailDTO dto, String emailId, BigDecimal numberOfRetries) {
         try {
             List<EmailLog> emailLogs = emailLogRepository.findAllByEmailId(emailId);
-            EmailLog emailLog = emailLogs.getFirst();
+            EmailLog emailLog = emailLogs.get(0);
             emailLog.setStatus(EmailStatus.SUCCESS);
             emailLog.setEmailType(dto.getEmailType());
             emailLog.setTemplateId(dto.getTemplateName());
@@ -196,7 +196,7 @@ public class EmailUtilities {
                 emailLog.setCreatedDate(LocalDateTime.now());
                 setupErrorLog(dto, status, numberOfRetries, httpCode, errorCode, errorMessage, emailLog);
             } else {
-                EmailLog emailLog = emailLogs.getFirst();
+                EmailLog emailLog = emailLogs.get(0);
                 setupErrorLog(dto, status, numberOfRetries, httpCode, errorCode, errorMessage, emailLog);
             }
         } catch(Exception e) {

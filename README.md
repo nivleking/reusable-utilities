@@ -1,6 +1,6 @@
 # 🚀 Spring Boot Utilities
 
-![Java Version](https://img.shields.io/badge/Java-21-brightgreen)
+![Java Version](https://img.shields.io/badge/Java-8-brightgreen)
 ![Spring Boot](https://img.shields.io/badge/Spring%20Boot-3.2.5-green)
 ![PostgreSQL](https://img.shields.io/badge/PostgreSQL-latest-blue)
 
@@ -39,7 +39,7 @@ Dynamic configuration management:
 ## Getting Started
 
 ### Prerequisites
-- Java 21+
+- Java 8+
 - Maven 3.8+
 - Docker & Docker Compose (optional, for local development)
 - PostgreSQL database

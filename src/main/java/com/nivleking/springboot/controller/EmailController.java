@@ -1,5 +1,7 @@
 package com.nivleking.springboot.controller;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.nivleking.springboot.constant.ResponseMessages;
 import com.nivleking.springboot.constant.UtilHelper;
 import com.nivleking.springboot.dto.ApiResponse;
@@ -26,12 +28,16 @@ public class EmailController {
     @Autowired
     private EmailService emailService;
 
+    @Autowired
+    private ObjectMapper objectMapper;
+
     @PostMapping("send-email")
     public ResponseEntity<ApiResponseV2<String>> sendEmail(
             @RequestParam(name = "files", required = false) MultipartFile[] files,
             @RequestParam(name = "dto") EmailDTO dto
-    ) {
+    ) throws JsonProcessingException {
         UtilHelper.ensureTraceAndSpanIds();
+        MDC.put("input", objectMapper.writeValueAsString(dto));
         String traceId = MDC.get("X-B3-TraceId");
         try {
             log.info("Processing email request to: {}", dto.getReceiver());

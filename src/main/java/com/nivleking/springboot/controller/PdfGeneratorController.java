@@ -1,5 +1,7 @@
 package com.nivleking.springboot.controller;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.nivleking.springboot.dto.PdfGenerateRequestDTO;
 import org.slf4j.MDC;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
@@ -23,15 +25,19 @@ public class PdfGeneratorController {
     @Autowired
     private PdfGeneratorService pdfGeneratorService;
 
+    @Autowired
+    private ObjectMapper objectMapper;
+
     @PostMapping("/generate")
     public ResponseEntity<ApiResponseV2<Object>> generatePdf(
-            @RequestBody String jsonString
+            @RequestBody PdfGenerateRequestDTO dto
     ) throws Exception {
         UtilHelper.ensureTraceAndSpanIds();
+        MDC.put("input", objectMapper.writeValueAsString(dto));
         String traceId = MDC.get("X-B3-TraceId");
         try {
             log.info("[PDF-GENERATOR] Received generate request with traceId {}", traceId);
-            byte[] data = pdfGeneratorService.parseThymeleafTemplate(jsonString);
+            byte[] data = pdfGeneratorService.parseThymeleafTemplate(dto);
             log.info("[PDF-GENERATOR] PDF generation succeeded (bytes={}) for traceId {}", data == null ? 0 : data.length, traceId);
 
             return ResponseEntity.ok(ApiResponseV2.success(

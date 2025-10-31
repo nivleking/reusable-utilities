@@ -1,5 +1,6 @@
 package com.nivleking.springboot.config;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.nivleking.springboot.constant.ConfigServerMap;
 import com.nivleking.springboot.dto.ConfigMapData;
 import com.nivleking.springboot.model.ConfigServer;
@@ -91,7 +92,11 @@ public class UtilitiesConfiguration {
 
     @Bean
     public ModelMapper modelMapper() {
-        ModelMapper mapper = new ModelMapper();
-        return mapper;
+        return new ModelMapper();
+    }
+
+    @Bean
+    public ObjectMapper objectMapper() {
+        return new ObjectMapper();
     }
 }

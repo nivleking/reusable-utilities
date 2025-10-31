@@ -1,6 +1,7 @@
 package com.nivleking.springboot.service;
 
 import com.lowagie.text.DocumentException;
+import com.nivleking.springboot.dto.PdfGenerateRequestDTO;
 import org.json.JSONObject;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -17,31 +18,25 @@ public class PdfGeneratorService {
     private PdfJsonUtilities pdfJsonUtilities;
 
     /**
-     * Parse incoming JSON string that should contain `template` and `data`,
-     * generate HTML via Thymeleaf and convert to PDF bytes.
+     * Accept typed DTO (template + data), generate HTML via Thymeleaf and convert to PDF bytes.
      */
-    public byte[] parseThymeleafTemplate(String jsonString) throws DocumentException, IOException {
-        log.debug("[PDF-GENERATOR] parseThymeleafTemplate input length: {}", jsonString == null ? 0 : jsonString.length());
-        if (jsonString == null || jsonString.trim().isEmpty()) {
-            log.error("[PDF-GENERATOR] Empty JSON input");
-            throw new IllegalArgumentException("JSON input for PDF generator is empty");
+    public byte[] parseThymeleafTemplate(PdfGenerateRequestDTO dto) throws DocumentException, IOException {
+        if (dto == null) {
+            log.error("[PDF-GENERATOR] Request DTO is null");
+            throw new IllegalArgumentException("Request DTO is null");
+        }
+
+        String template = dto.getTemplate();
+        Object dataObj = dto.getData();
+
+        if (template == null || template.trim().isEmpty()) {
+            log.error("[PDF-GENERATOR][ERR] Missing `template` in request DTO");
+            throw new IllegalArgumentException("Missing `template` in request");
         }
 
         try {
-            JSONObject jsonObject = new JSONObject(jsonString);
-            log.debug("[PDF-GENERATOR] Parsed JSON object keys: {}", jsonObject.keySet());
-            LinkedHashMap<String, Object> jsonMap = pdfJsonUtilities.jsonToMap(jsonObject);
-
-            Object templateObj = jsonMap.get("template");
-            Object dataObj = jsonMap.get("data");
-
-            if (templateObj == null) {
-                log.error("[PDF-GENERATOR][ERR] Missing `template` in JSON input");
-                throw new IllegalArgumentException("Missing `template` in JSON input");
-            }
-
             log.info("[PDF-GENERATOR] Generating HTML from template");
-            String html = pdfJsonUtilities.generateHtml(templateObj.toString(), dataObj);
+            String html = pdfJsonUtilities.generateHtml(template, dataObj);
 
             log.info("[PDF-GENERATOR] Generating PDF bytes from HTML (length ~ {})", html == null ? 0 : html.length());
             byte[] pdfBytes = pdfJsonUtilities.generatePdfFromHtml(html);
